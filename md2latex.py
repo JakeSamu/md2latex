@@ -191,7 +191,7 @@ def latexlist(match):
 
 def convertlists(markdownstring):
     convertedstring = markdownstring
-    matches = re.findall(r'\n((?:[\*\-]|\d+\.)(?=\s).*[\s\S]*)\n(?![\d\*\-])\S', markdownstring)
+    matches = re.findall(r'\n((?:[\*\-]|\d+\.)(?=\s).*[\s\S]*?)\n(?![\d\*\-])\S', markdownstring)
 
     for match in matches:
         while match.endswith("\n"): match = match[:-1]
