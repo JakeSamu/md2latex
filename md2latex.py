@@ -1,19 +1,14 @@
 import sys
 import re
+from config import *
 
 ### todo ###
 def todo():
     print("""
     - Change the latexcommands to a separate config file
-    - Get argparse for main function
-    - make requirements.txt
     - for package creation: https://python-poetry.org/
     """)
     return True
-
-
-encodingtype = "utf-8"
-min_title_depth = 0
 
 
 
@@ -85,43 +80,40 @@ def file_to_file(infile, outfile):
 
 def convertimages(markdownstring):
     convertedstring = markdownstring
-    matches = re.findall(r'!\[.*\]\(.*\)', markdownstring)
+    matches = re.findall(r'(!\[.*\])(\(.*\))', markdownstring)
     for match in matches:
-        caption = match[2:].split("](")[0]
-        filepath = match.split("](")[1][:-1]
-        # cause with python we use different starting point
+        caption = str(match[0])[2:-1]
+        filepath = str(match[1])[1:-1]
         label = filepath.split("/")[-1]
-
-        # maybe add [H] with correct package
-        latexcommand = f"""\\begin{{figure}}[H]
+        latexcommand = f"""\\begin{{figure}}{figurefloat}
 \t\\centering
-\t\\includegraphics[width=0.9\\linewidth,height=0.6\\textheight,keepaspectratio=true]{{{filepath}}}
+\t{includegraphic}{{{filepath}}}
 \t\\caption{{{caption}}}
 \t\\label{{{label}}}
 \\end{{figure}}
         """
-        convertedstring = convertedstring.replace(match, latexcommand)
+        convertedstring = convertedstring.replace(match[0]+match[1], latexcommand)
     return convertedstring
 
 def convertlinks(markdownstring):
     convertedstring = markdownstring
-    matches = re.findall(r'(?<= )\[.*\]\(.*\/.*\)', markdownstring)
+    matches = re.findall(r'(?<=\s)(\[.*\])(\(.*\/.*\))', markdownstring)
     for match in matches:
-        text = match[1:].split("](")[0]
-        url = match.split("](")[1][:-1]
+        text = str(match[0])[1:-1]
+        url = str(match[1])[1:-1]
         latexcommand = f"\\href{{{url}}}{{{text}}}"
-        convertedstring = convertedstring.replace(match, latexcommand)
+        convertedstring = convertedstring.replace(match[0]+match[1], latexcommand)
     return convertedstring
 
 def converturls_without_path(markdownstring):
     # not used atm
-    matches = re.findall(r'(http:\/\/.*|https:\/\/.+)(?<!\/)', markdownstring)
+    matches = re.findall(r'(?<=\s)(http:\/\/.*|https:\/\/.+)(?<!\/)', markdownstring)
     convertedstring = markdownstring
     return convertedstring
 
 def converturls(markdownstring):
     convertedstring = markdownstring
-    matches = re.findall(r'(?<= )https?:\/\/[\S]+', markdownstring)
+    matches = re.findall(r'(?<=\s)https?:\/\/[\S]+', markdownstring)
     for match in matches:
         latexcommand = f"\\url{{{match}}}"
         convertedstring = convertedstring.replace(match, latexcommand)
@@ -166,12 +158,11 @@ def latexlist(match):
     if match[0] == " ":
         match = shiftleft(match, depth)
     # then go to the main part - it got way more complicated than I wanted to ...
-    # todo: option between alphabetic and numeric style ...
     itemchar = match.split(" ")[0]
     if itemchar in ("*","-"):
-        latextype = "itemize"
+        latextype = latextype_notnumbered
     elif itemchar[-1] == ".":
-        latextype = "enumerate"
+        latextype = latextype_numbered
     else:
         print("error at computing latex list")
         print(firstline)
@@ -195,15 +186,13 @@ def latexlist(match):
         original = "\n".join(indentedlist)
         changed = latexlist("\n".join(indentedlist))
         content = content.replace(original, changed)
-
-        #if line.startswith("\t"):
+    
     latexcommand = f"\\begin{{{latextype}}}\n{content}\n\\end{{{latextype}}}"
     return shiftright(latexcommand, depth)
 
 def convertlists(markdownstring):
     convertedstring = markdownstring
     matches = re.findall(r'\n((?:[\*\-]|\d+\.)(?=\s).*[\s\S]*)\n(?![\d\*\-])\S', markdownstring)
-    # todo: define a way to understand the depth, then use that for nested itemize/enumeration lists
 
     for match in matches:
         while match.endswith("\n"): match = match[:-1]
@@ -283,7 +272,10 @@ def md2latex(text):
     output = convertcodeblocks(output)
     # now split along those codeblocks and only escape special characters outside of codeblocks
     codeblocks = re.findall(r'([\s\S]*?)(\\begin{verbatim}[\s\S]*?\\end{verbatim})', output)
-    codeblocks.append([re.findall(r'[\s\S]*\\end{verbatim}([\s\S]*)', output)[-1], ""])
+    # only if at least one codeblock exists, append the last block that is not grepped with above regex
+    if len(codeblocks) > 0:
+        codeblocks.append([re.findall(r'[\s\S]*\\end{verbatim}([\s\S]*)', output)[-1], ""])
+    else: codeblocks.append([output, ""])
     combiner = ""
     for (noncode,code) in codeblocks:
         noncode = latex_escape_specialcharacters_pre(noncode)
@@ -318,9 +310,6 @@ def md2latex(text):
 
 
 def main():
-    if len(sys.argv) > 1:
-        file_to_file(sys.argv[1], "testoutput.tex")
-    else:
-        print("No input")
-    exit()
+    print("No standalone main exists, please use the commands presented in the README.md")
+
 main()
