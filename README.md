@@ -15,7 +15,7 @@ The converted string/file is not a standalone working LaTeX project. The result 
 ## Python Requirements
 Python 3!
 
-Only sys and re are used, so no real dependencies are used and therefore no requirements.txt exists.
+Only re is used, so no real dependencies are used and therefore no requirements.txt exists.
 
 ## LaTeX Requirements
 You need to use some latex packages for different features of markdown.

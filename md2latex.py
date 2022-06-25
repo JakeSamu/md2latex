@@ -1,6 +1,5 @@
-import sys
 import re
-from config import *
+from .config import *
 
 ### todo ###
 def todo():
