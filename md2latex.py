@@ -261,7 +261,7 @@ def convertcodeblocks(markdownstring):
         code = match.replace("```", "")
         while code.startswith("\n"): code = code[1:]
         while code.endswith("\n"): code = code[:-1]
-        latexcommand = f"\\begin{{verbatim}}\n{code}\n\\end{{verbatim}}"
+        latexcommand = f"\\begin{{{codeblockenv}}}\n{code}\n\\end{{{codeblockenv}}}"
         convertedstring = convertedstring.replace(match, latexcommand)
     return convertedstring
 
