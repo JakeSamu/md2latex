@@ -16,6 +16,12 @@ latexuses = ["\\","{","}"] # those are special characters that it uses by itself
 latexspecials = ["#","~","_","%"] # those characters cannot be escaped beforehand, since they are used for markdown syntax. some could be done beforehand like "%", but well, let's do that last
 latexdelimiters = ["|", "*", "_", "#", "!", "+", "-", "§", "/", "?", "@"]
 
+def delete_latex_specialcharacters(text):
+    newtext = text
+    for c in latexspecials+latexuses:
+        newtext.replace(c, "")
+    return newtext
+
 def latex_unescape_markdownspecials(text):
     newtext = text
     for specialchar in markdownspecials:
@@ -84,7 +90,7 @@ def convertimages(markdownstring):
     for match in matches:
         caption = str(match[0])[2:-1]
         filepath = str(match[1])[1:-1]
-        label = filepath.split("/")[-1]
+        label = delete_latex_specialcharacters(filepath.split("/")[-1])
         latexcommand = f"""\\begin{{figure}}{figurefloat}
 \t\\centering
 \t{includegraphic}{{{filepath}}}
