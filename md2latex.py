@@ -1,5 +1,5 @@
 import re
-from .config import *
+from config import *
 
 ### todo ###
 def todo():
@@ -14,6 +14,7 @@ def todo():
 markdownspecials = ["\\","*","_","#","~","{","}","!","(",")"] # those characters can be escaped in markdown, which we need to consider for situations like \_ and unescape something like \(
 latexuses = ["\\","{","}"] # those are special characters that it uses by itself. therefore these have to be escaped beforehand
 latexspecials = ["#","~","_","%"] # those characters cannot be escaped beforehand, since they are used for markdown syntax. some could be done beforehand like "%", but well, let's do that last
+latexdelimiters = ["|", "*", "_", "#", "!", "+", "-", "§", "/", "?", "@"]
 
 def latex_unescape_markdownspecials(text):
     newtext = text
@@ -223,6 +224,8 @@ def convertcrossed(markdownstring):
     # you just need to copy and paste to convertbold and change the regex such that it does not capture "_" or "*" but "~" instead.
 
 def converttables(markdownstring):
+    ## todo: currently if every line starts with "|" and one with " |" this is seen as a true list for latex but not in markdown.
+
     convertedstring = markdownstring
     # the idea is to get the main pattern '|-|-|' , the line before and then all lines afterwards up to an | symbol with newline and not starting with | again.
     potential_matches = re.findall(r'(.*\n[\|-][:\|\- ]*\|\n[\s\S]*?[\|-])\n(?!\|)', markdownstring)
@@ -252,6 +255,7 @@ def converttables(markdownstring):
 
 def convertcodeblocks(markdownstring):
     convertedstring = markdownstring
+    codeblocks = []
     # full codeblocks that are not inline
     matches1 = re.findall(r'(?<!.)`{3}[\s\S]*?`{3}', markdownstring)
     # tabbed in text that has empty line above and below is a codeblock too
@@ -262,53 +266,112 @@ def convertcodeblocks(markdownstring):
         while code.endswith("\n"): code = code[:-1]
         latexcommand = f"\\begin{{{codeblockenv}}}\n{code}\n\\end{{{codeblockenv}}}"
         convertedstring = convertedstring.replace(match, latexcommand)
-    return convertedstring
+        codeblocks.append(latexcommand)
+    return (convertedstring, codeblocks)
+
+def convertinlinecode(markdownstring):
+    convertedstring = markdownstring
+    inlinecodes = []
+    # inline code
+    matches = re.findall(r'(`+)([\s\S]*?)(`+)', markdownstring)
+    for match in matches:
+        if match[0] == match[2]:
+            delimiter = "^"
+            for x in latexdelimiters:
+                if x not in match[1]:
+                    delimiter = x
+                    break
+            latexcommand = "\\verb" + delimiter + match[1] + delimiter
+            convertedstring = convertedstring.replace(match[0]+match[1]+match[2], latexcommand)
+            inlinecodes.append(latexcommand)
+    return (convertedstring, inlinecodes)
+
+def find_all_occurences(text, subtext, overlap):
+    start = 0
+    occurences = []
+    while True:
+        start = text.find(subtext, start)
+        if start == -1:
+            break
+        occurences.append(start)
+        if overlap == True:
+            start += 1
+        else:
+            start += len(subtext)
+    return occurences
+            
 
 def md2latex(text):
-    output = text
+    modified_text = text
 
     # check for codeblocks
-    output = convertcodeblocks(output)
-    # now split along those codeblocks and only escape special characters outside of codeblocks
-    codeblocks = re.findall(r'([\s\S]*?)(\\begin{verbatim}[\s\S]*?\\end{verbatim})', output)
-    # only if at least one codeblock exists, append the last block that is not grepped with above regex
-    if len(codeblocks) > 0:
-        codeblocks.append([re.findall(r'[\s\S]*\\end{verbatim}([\s\S]*)', output)[-1], ""])
-    else: codeblocks.append([output, ""])
+    (modified_text, codeblocks) = convertcodeblocks(modified_text)
+    (modified_text, inlinecodes) = convertinlinecode(modified_text)
+
+    # now split along those codeblocks and only escape special characters outside of codeblocks 
+    codeblocks = list(set(codeblocks))
+    inlinecodes = list(set(inlinecodes))
+
+
+    # find the indices of every text element that contains code
+    code_sorted_by_occurence = []
+    for code in codeblocks+inlinecodes:
+        for i in find_all_occurences(modified_text, code, False):
+            code_sorted_by_occurence.append((i, code))
+    code_sorted_by_occurence.sort()
+
+    # now we have a list of all text elements that contain code and should not further be modified
+    # now separate the text into those that do and do not contain code
+    text_splitted = []
+    text_to_be_splitted = modified_text
+    for (index, code) in code_sorted_by_occurence:
+        noncode = text_to_be_splitted.split(code)[0]
+        text_splitted.append((True, noncode))
+        text_splitted.append((False, code))
+        # if code appears several times, we need to rejoin it for the later appearance
+        text_to_be_splitted = code.join(text_to_be_splitted.split(code)[1:])
+    text_splitted.append((True, text_to_be_splitted))
+
+    # with this we can cycle through the whole text and only modify text that does not contain code
     combiner = ""
-    for (noncode,code) in codeblocks:
-        noncode = latex_escape_specialcharacters_pre(noncode)
+    
+    for (is_noncode,textpart) in text_splitted:
+        if is_noncode == True:
+            noncode = textpart
+            noncode = latex_escape_specialcharacters_pre(noncode)
 
-        # check for links and urls
-        noncode = converturls(noncode)
-        noncode = convertlinks(noncode)
+            # check for links and urls
+            noncode = converturls(noncode)
+            noncode = convertlinks(noncode)
 
-        # check for inserted pictures
-        noncode = convertimages(noncode)
+            # check for inserted pictures
+            noncode = convertimages(noncode)
 
-        # check for titles
-        noncode = converttitles(noncode)
+            # check for titles
+            noncode = converttitles(noncode)
 
-        # check for lists
-        noncode = convertlists(noncode)
+            # check for lists
+            noncode = convertlists(noncode)
 
-        # check for emphasised text
-        noncode = convertbold(noncode)
-        noncode = convertitalic(noncode)
+            # check for emphasised text
+            noncode = convertbold(noncode)
+            noncode = convertitalic(noncode)
 
-        # check for tables
-        noncode = converttables(noncode)
+            # check for tables
+            noncode = converttables(noncode)
 
-        noncode = latex_escape_specialcharacters_post(noncode)
-        
-        #recombine converted parts (outside of codeblocks) with nonconverted codeblocks
-        combiner = combiner + noncode
-        combiner = combiner + code
+            noncode = latex_escape_specialcharacters_post(noncode)
+            
+            combiner += noncode
+        else:
+            combiner += textpart
 
     return combiner
 
 
 def main():
     print("No standalone main exists, please use the commands presented in the README.md")
+    import sys
+    file_to_file(sys.argv[1], "testoutput.tex")
 
 main()

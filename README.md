@@ -45,4 +45,3 @@ The following code is an example for a minimal working LaTeX-document.
 ## Things that do not work (yet)
 - Pictures that are clickable links do not work correctly. The result is a clickable caption (or more precise, figure, which is not the picture).
     - Example code: ```[![CI](https://github.com/mame/quine-relay/workflows/CI/badge.svg)](https://github.com/mame/quine-relay/actions?query=workflow%2ACI)```
-- Inlinecode like `this`. Currently there is no command for that, only for full blocks of code like the above minimal LaTeX file.
