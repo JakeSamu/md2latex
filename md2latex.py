@@ -377,7 +377,6 @@ def md2latex(text):
 
 def main():
     print("No standalone main exists, please use the commands presented in the README.md")
-    import sys
-    file_to_file(sys.argv[1], "testoutput.tex")
 
-main()
+if __name__ == '__main__':
+    main()
