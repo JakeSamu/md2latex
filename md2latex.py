@@ -8,10 +8,10 @@ ENCODINGTYPE = "utf-8"
 # This value shifts the markdown header to smaller LaTeX headers
 # Value of 0 means that headers with one "#" are chapters, with "##" sections, with "###" subsections and after that just large and bold text.
 # Value of 1 means, that "#" is already a section, "##" a subsection, etc.
-MIN_TITLE_DEPTH = 0
+MAX_TITLE_HEAD = 0
 
 # The LaTeX command that inserts a given picture is the following.
-INCLUDEGRAPHIC = "\\INCLUDEGRAPHICs[width=0.9\\linewidth,height=0.6\\textheight,keepaspectratio=true]"
+INCLUDEGRAPHIC = "\\includegraphics[width=0.9\\linewidth,height=0.6\\textheight,keepaspectratio=true]"
 
 # The LaTeX variable given to a figure. Default is [H] for creating the picture at exactly the same place.
 FIGUREFLOAT = "[H]"
@@ -39,6 +39,8 @@ def delete_latex_specialcharacters(text):
     for c in LATEX_SPECIALS+LATEX_USES:
         newtext.replace(c, "")
     return newtext
+def label_converter(text):
+    return delete_latex_specialcharacters(text.replace(" ", "-"))
 
 def latex_unescape_MARKDOWN_SPECIALS(text):
     newtext = text
@@ -108,7 +110,7 @@ def convertimages(markdownstring):
     for match in matches:
         caption = str(match[0])[2:-1]
         filepath = str(match[1])[1:-1]
-        label = delete_latex_specialcharacters(filepath.split("/")[-1])
+        label = label_converter(filepath.split("/")[-1])
         latexcommand = f"""\\begin{{figure}}{FIGUREFLOAT}
 \t\\centering
 \t{INCLUDEGRAPHIC}{{{filepath}}}
@@ -119,13 +121,38 @@ def convertimages(markdownstring):
         convertedstring = convertedstring.replace(match[0]+match[1], latexcommand)
     return convertedstring
 
+
+def get_first_title(file):
+    if not file.endswith(".md"):
+        file += ".md"
+    filereader = open(file, "r", encoding=ENCODINGTYPE)
+    content = filereader.read()
+    filereader.close()
+    titles = re.findall(r'\n#+(.+)|^#+(.+)', content)
+    if titles[0][0] == "":
+        title = titles[0][1]
+    else:
+        title = titles[0][0]
+    while title.startswith(" "):
+        title = title[1:]
+    return title
+
+
+
 def convertlinks(markdownstring):
     convertedstring = markdownstring
-    matches = re.findall(r'(?<=\s)(\[.*\])(\(.*\/.*\))', markdownstring)
+    matches = re.findall(r'(?<=\s)(\[.*\])(\(.*\))', markdownstring)
     for match in matches:
         text = str(match[0])[1:-1]
-        url = str(match[1])[1:-1]
-        latexcommand = f"\\href{{{url}}}{{{text}}}"
+        link = str(match[1])[1:-1]
+        if "http" in link:
+            latexcommand = f"\\href{{{link}}}{{{text}}}"
+        else:
+            if "#" in link:
+                label = label_converter(link.split("#")[-1])
+            else:
+                label = label_converter(get_first_title(link))
+            latexcommand = f"\\ref{{{label}}}"
         convertedstring = convertedstring.replace(match[0]+match[1], latexcommand)
     return convertedstring
 
@@ -148,16 +175,17 @@ def converttitles(markdownstring):
     convertedstring = markdownstring
     matches = re.findall(r'\n#+.+|^#+.+', markdownstring)
     for match in matches:
-        depth = match.count("#") + MIN_TITLE_DEPTH
+        depth = match.count("#") + MAX_TITLE_HEAD
         title = " ".join(match.split(" ")[1:])
+        label = label_converter(title)
         if depth == 1:
-            latexcommand = f"\n\n\\chapter{{{title}}}\\label{{{title}}}"
+            latexcommand = f"\n\n\\chapter{{{title}}}\\label{{{label}}}"
         elif depth == 2:
-            latexcommand = f"\n\\section{{{title}}}\\label{{{title}}}"
+            latexcommand = f"\n\\section{{{title}}}\\label{{{label}}}"
         elif depth == 3:
-            latexcommand = f"\n\\subsection{{{title}}}\\label{{{title}}}"
+            latexcommand = f"\n\\subsection{{{title}}}\\label{{{label}}}"
         else:
-            latexcommand = f"\n{{\\textbf\Large{{{title}}}}}\\label{{{title}}}\n"
+            latexcommand = f"\n{{\\textbf\Large{{{title}}}}}\\label{{{label}}}\n"
         convertedstring = convertedstring.replace(match, latexcommand)
     return convertedstring
 
@@ -260,9 +288,9 @@ def converttables(markdownstring):
             if counter != line.count("|"):
                 # formatting of table is wrong
                 matches.remove(match)
-    # now convert it to tabularx
+    # now convert it to tabular
     for match in matches:
-        tablesize = "X" * (match.split("\n")[0].count("|") - 1)
+        tablesize = "l" * (match.split("\n")[0].count("|") - 1)
         lines = []
         for line in match.split("\n"):
             if len(line) > 0:
@@ -273,7 +301,7 @@ def converttables(markdownstring):
                 lines.append(" & ".join(line.split("|")[s:t]))
         lines.pop(1) # since this is just the horizontal line
         content = " \\tabularnewline\n\t".join(lines).replace("\n", "\hline\n", 1) # set horizontal line via replace
-        latexcommand = f"\n\\vspace{{9pt}}\n\\begin{{tabularx}}{{\\textwidth}}{{{tablesize}}}\n\t{content}\n\\end{{tabularx}}\n\\vspace{{9pt}}"
+        latexcommand = f"\n\\vspace{{9pt}}\n\\begin{{tabular}}{{{tablesize}}}\n\t{content}\n\\end{{tabular}}\n\\vspace{{9pt}}"
         convertedstring = convertedstring.replace(match, latexcommand)
     return convertedstring
 
@@ -310,6 +338,10 @@ def convertinlinecode(markdownstring):
             inlinecodes.append(latexcommand)
     return (convertedstring, inlinecodes)
 
+def get_latex_references(markdownstring):
+    matches = re.findall(r'\\ref{.*?}', markdownstring)
+    return matches
+
 def find_all_occurences(text, subtext, overlap):
     start = 0
     occurences = []
@@ -331,15 +363,17 @@ def md2latex(text):
     # check for codeblocks
     (modified_text, codeblocks) = convertcodeblocks(modified_text)
     (modified_text, inlinecodes) = convertinlinecode(modified_text)
+    references = get_latex_references(modified_text)
 
-    # now split along those codeblocks and only escape special characters outside of codeblocks 
+    # get a list of everything that should not be modified or escaped
     codeblocks = list(set(codeblocks))
     inlinecodes = list(set(inlinecodes))
+    references = list(set(references))
+    do_not_modify_list = codeblocks+inlinecodes+references
 
-
-    # find the indices of every text element that contains code
+    # find the indices of every text element that should not be modified
     code_sorted_by_occurence = []
-    for code in codeblocks+inlinecodes:
+    for code in do_not_modify_list:
         for i in find_all_occurences(modified_text, code, False):
             code_sorted_by_occurence.append((i, code))
     code_sorted_by_occurence.sort()
@@ -395,6 +429,13 @@ def md2latex(text):
 
 def main():
     print("No standalone main exists, please use the commands presented in the README.md")
+    import sys, os
+    if len(sys.argv) > 2:
+        file_to_file(sys.argv[1], "testoutput.tex")
+        file_to_file(sys.argv[2], "testoutput2.tex")
+        os.system(os.path.join(".","tectonic.exe")+" report.tex --synctex --keep-logs")
+    else:
+        print("give 2 files")
 
 if __name__ == '__main__':
     main()
