@@ -1,43 +1,61 @@
 import re
-from config import *
 
-### todo ###
-def todo():
-    print("""
-    - Change the latexcommands to a separate config file
-    - for package creation: https://python-poetry.org/
-    """)
-    return True
+### config - not separated in different file for easier control
+
+# For reading and writing files
+ENCODINGTYPE = "utf-8"
+
+# This value shifts the markdown header to smaller LaTeX headers
+# Value of 0 means that headers with one "#" are chapters, with "##" sections, with "###" subsections and after that just large and bold text.
+# Value of 1 means, that "#" is already a section, "##" a subsection, etc.
+MIN_TITLE_DEPTH = 0
+
+# The LaTeX command that inserts a given picture is the following.
+INCLUDEGRAPHIC = "\\INCLUDEGRAPHICs[width=0.9\\linewidth,height=0.6\\textheight,keepaspectratio=true]"
+
+# The LaTeX variable given to a figure. Default is [H] for creating the picture at exactly the same place.
+FIGUREFLOAT = "[H]"
+
+# Define what kind of environment latex should use for not numbered and numbered list
+LATEXTYPE_NOTNUMBERED = "itemize"
+LATEXTYPE_NUMBERED = "enumerate"
+# Define what kind of environment LaTeX should use for full codeblocks (not inline code)
+CODEBLOCKENV = "verbatim"
+
+###
 
 
 
-markdownspecials = ["\\","*","_","#","~","{","}","!","(",")"] # those characters can be escaped in markdown, which we need to consider for situations like \_ and unescape something like \(
-latexuses = ["\\","{","}"] # those are special characters that it uses by itself. therefore these have to be escaped beforehand
-latexspecials = ["#","~","_","%"] # those characters cannot be escaped beforehand, since they are used for markdown syntax. some could be done beforehand like "%", but well, let's do that last
-latexdelimiters = ["|", "*", "_", "#", "!", "+", "-", "§", "/", "?", "@"]
+
+
+MARKDOWN_SPECIALS = ["\\","*","_","#","~","{","}","!","(",")"] # those characters can be escaped in markdown, which we need to consider for situations like \_ and unescape something like \(
+LATEX_USES = ["\\","{","}"] # those are special characters that it uses by itself. therefore these have to be escaped beforehand
+LATEX_SPECIALS = ["#","~","_","%"] # those characters cannot be escaped beforehand, since they are used for markdown syntax. some could be done beforehand like "%", but well, let's do that last
+LATEX_DELIMITERS = ["|", "*", "_", "#", "!", "+", "-", "§", "/", "?", "@"]
+
 
 def delete_latex_specialcharacters(text):
     newtext = text
-    for c in latexspecials+latexuses:
+    for c in LATEX_SPECIALS+LATEX_USES:
         newtext.replace(c, "")
     return newtext
 
-def latex_unescape_markdownspecials(text):
+def latex_unescape_MARKDOWN_SPECIALS(text):
     newtext = text
-    for specialchar in markdownspecials:
-        if specialchar not in latexuses+latexspecials:
+    for specialchar in MARKDOWN_SPECIALS:
+        if specialchar not in LATEX_USES+LATEX_SPECIALS:
             newtext = newtext.replace("\\"+specialchar, specialchar)
     return newtext
 def latex_escape_specialcharacters_pre(text):
     # always check for \ first, otherwise it will result in problems due to changing \# to \\# and stuff like that!
-    newtext = latex_unescape_markdownspecials(text)
+    newtext = latex_unescape_MARKDOWN_SPECIALS(text)
     
     # the char \ has to be considered differently
     # first check that no \ precedes it, since then it is an escaped backslash in both markdown and latex
     # then we need to check if some special character in markdown follows after that \ ... this will be escaped for latex anyway
     # and finally grab the character that follows this, since we know then that this \ has to be escaped
     regexstring = r'(?<!\\)(?!\\).{1}\\(?![\\'
-    for x in markdownspecials:
+    for x in MARKDOWN_SPECIALS:
         regexstring += x
     regexstring += r'])(?!\\).{1}'
 
@@ -46,7 +64,7 @@ def latex_escape_specialcharacters_pre(text):
         newtext = newtext.replace(match, match[0]+"\\"+match[1:])
     
     # all special chars besides \
-    for specialchar in latexuses:
+    for specialchar in LATEX_USES:
         if specialchar == "\\": continue
         newtext = newtext.replace("\\"+specialchar, specialchar)
         newtext = newtext.replace(specialchar, "\\"+specialchar)
@@ -54,7 +72,7 @@ def latex_escape_specialcharacters_pre(text):
     return newtext
 def latex_escape_specialcharacters_post(text):
     newtext = text
-    for specialchar in latexspecials:
+    for specialchar in LATEX_SPECIALS:
         newtext = newtext.replace("\\"+specialchar, specialchar)
         newtext = newtext.replace(specialchar, "\\"+specialchar)
     return newtext
@@ -65,18 +83,18 @@ def string_to_string(instring):
     return md2latex(instring)
 
 def string_to_file(instring, outfile):
-    o = open(outfile, "w", encoding=encodingtype)
+    o = open(outfile, "w", encoding=ENCODINGTYPE)
     o.write(md2latex(instring))
     return True
 
 def file_to_string(infile):
-    f = open(infile, "r", encoding=encodingtype)
+    f = open(infile, "r", encoding=ENCODINGTYPE)
     outstring = f.read()
     return md2latex(outstring)
 
 def file_to_file(infile, outfile):
-    f = open(infile, "r", encoding=encodingtype)
-    o = open(outfile, "w", encoding=encodingtype)
+    f = open(infile, "r", encoding=ENCODINGTYPE)
+    o = open(outfile, "w", encoding=ENCODINGTYPE)
     outstring = f.read()
     o.write(md2latex(outstring))
     return True
@@ -91,9 +109,9 @@ def convertimages(markdownstring):
         caption = str(match[0])[2:-1]
         filepath = str(match[1])[1:-1]
         label = delete_latex_specialcharacters(filepath.split("/")[-1])
-        latexcommand = f"""\\begin{{figure}}{figurefloat}
+        latexcommand = f"""\\begin{{figure}}{FIGUREFLOAT}
 \t\\centering
-\t{includegraphic}{{{filepath}}}
+\t{INCLUDEGRAPHIC}{{{filepath}}}
 \t\\caption{{{caption}}}
 \t\\label{{{label}}}
 \\end{{figure}}
@@ -130,16 +148,16 @@ def converttitles(markdownstring):
     convertedstring = markdownstring
     matches = re.findall(r'\n#+.+|^#+.+', markdownstring)
     for match in matches:
-        depth = match.count("#") + min_title_depth
+        depth = match.count("#") + MIN_TITLE_DEPTH
         title = " ".join(match.split(" ")[1:])
         if depth == 1:
-            latexcommand = f"\n\n\\chapter{{{title}}}"
+            latexcommand = f"\n\n\\chapter{{{title}}}\\label{{{title}}}"
         elif depth == 2:
-            latexcommand = f"\n\\section{{{title}}}"
+            latexcommand = f"\n\\section{{{title}}}\\label{{{title}}}"
         elif depth == 3:
-            latexcommand = f"\n\\subsection{{{title}}}"
+            latexcommand = f"\n\\subsection{{{title}}}\\label{{{title}}}"
         else:
-            latexcommand = f"\n{{\\textbf\Large{{{title}}}}}\n"
+            latexcommand = f"\n{{\\textbf\Large{{{title}}}}}\\label{{{title}}}\n"
         convertedstring = convertedstring.replace(match, latexcommand)
     return convertedstring
 
@@ -166,9 +184,9 @@ def latexlist(match):
     # then go to the main part - it got way more complicated than I wanted to ...
     itemchar = match.split(" ")[0]
     if itemchar in ("*","-"):
-        latextype = latextype_notnumbered
+        latextype = LATEXTYPE_NOTNUMBERED
     elif itemchar[-1] == ".":
-        latextype = latextype_numbered
+        latextype = LATEXTYPE_NUMBERED
     else:
         print("error at computing latex list")
         print(firstline)
@@ -270,7 +288,7 @@ def convertcodeblocks(markdownstring):
         code = match.replace("```", "")
         while code.startswith("\n"): code = code[1:]
         while code.endswith("\n"): code = code[:-1]
-        latexcommand = f"\\begin{{{codeblockenv}}}\n{code}\n\\end{{{codeblockenv}}}"
+        latexcommand = f"\\begin{{{CODEBLOCKENV}}}\n{code}\n\\end{{{CODEBLOCKENV}}}"
         convertedstring = convertedstring.replace(match, latexcommand)
         codeblocks.append(latexcommand)
     return (convertedstring, codeblocks)
@@ -283,7 +301,7 @@ def convertinlinecode(markdownstring):
     for match in matches:
         if match[0] == match[2]:
             delimiter = "^"
-            for x in latexdelimiters:
+            for x in LATEX_DELIMITERS:
                 if x not in match[1]:
                     delimiter = x
                     break
