@@ -43,7 +43,7 @@ The following code is an example for a minimal working LaTeX-document.
 ### Including pictures
 Since LaTeX needs to know the exact path to the file and may not have the same relative path, there are two options:
 1. Always use the full path from root directory for the images.
-2. Set `\graphicspath{{path/to/markdown-files/}}` for the file where you use relative paths to pictures.
+2. Set `\graphicspath{{path/to/markdown-files/}{second/path/}}` for the files where you use relative paths to pictures.
 
 ### References
 Since one might be interested in referencing specific pictures and/or sections in the final pdf, there are some rules that need to be considered.
