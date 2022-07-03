@@ -47,10 +47,10 @@ Since LaTeX needs to know the exact path to the file and may not have the same r
 
 ### References
 Since one might be interested in referencing specific pictures and/or sections in the final pdf, there are some rules that need to be considered.
-1. Inside every used file every title has to be unique.
-2. It cannot reference to a file directly, only to the highest title. Therefore only use full paths from root if you want to reference a file and not a title in markdown.
+1. Every title used in all files combined has to be unique.
+2. The script cannot reference to a file directly, only to the highest title. Therefore only use full paths from root if you want to reference to a file and not a title in markdown (it needs to read the file for name of the first title).
 3. Every picture gets the same reference as its name
-    - so be careful if you use the same picture several times inside one file, you should probably duplicate it for reference purpose.
+    - so be careful if you use the same picture several times, you should probably duplicate it for reference purpose only.
 4. If you want to reference something that is not possible with standard markdown, then you can use latex-reference directly via "\ref{reference-to-latex-label}".
     - For this you need to understand how the labels are automatically set. They all have the following format for titles `titlename` and for images `picturename.picturetype`.
     - Since markdown does not like empty spaces in names, we replace spaces with "-".
