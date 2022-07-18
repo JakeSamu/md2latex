@@ -128,15 +128,18 @@ def get_first_title(file):
     filereader = open(file, "r", encoding=ENCODINGTYPE)
     content = filereader.read()
     filereader.close()
-    titles = re.findall(r'\n#+(.+)|^#+(.+)', content)
-    if titles[0][0] == "":
-        title = titles[0][1]
+    titles = re.findall(r'(?:^|\n)#+(.+)|^#+(.+)', content)
+    if len(titles) == 0:
+        print("The file "+file+" has no header, therefore linking to this file is not possible.")
+        return ""
     else:
-        title = titles[0][0]
-    while title.startswith(" "):
-        title = title[1:]
-    return title
-
+        if titles[0][0] == "":
+            title = titles[0][1]
+        else:
+            title = titles[0][0]
+        while title.startswith(" "):
+            title = title[1:]
+        return title
 
 
 def convertlinks(markdownstring):
@@ -244,8 +247,8 @@ def latexlist(match):
 
 def convertlists(markdownstring):
     convertedstring = markdownstring
-    matches = re.findall(r'\n((?:[\*\-]|\d+\.)(?=\s).*[\s\S]*?)\n(?![\d\*\-])\S', markdownstring)
-
+    matches = re.findall(r'(?:^|\n)((?:[\*\-]|\d+\.)(?=\s).*[\s\S]*?)(?:\n|$)(?![\d\*\-])(?:\S|$)', markdownstring)
+    
     for match in matches:
         while match.endswith("\n"): match = match[:-1]
         latexcommand = latexlist(match)
@@ -311,7 +314,8 @@ def convertcodeblocks(markdownstring):
     # full codeblocks that are not inline
     matches1 = re.findall(r'(?<!.)`{3}[\s\S]*?`{3}', markdownstring)
     # tabbed in text that has empty line above and below is a codeblock too
-    matches2 = re.findall(r'\n\n((?:\s+\s+|\t+)[\s\S]*?)\n\n(?=\S)', markdownstring)
+    matches2 = re.findall(r'\n\n((?: + +|\t+)[\s\S]*?)\n\n(?=\S|$)', markdownstring)
+    print(matches2)
     for match in matches1+matches2:
         code = match.replace("```", "")
         while code.startswith("\n"): code = code[1:]
@@ -430,12 +434,11 @@ def md2latex(text):
 def main():
     print("No standalone main exists, please use the commands presented in the README.md")
     import sys, os
-    if len(sys.argv) > 2:
+    if len(sys.argv) > 1:
         file_to_file(sys.argv[1], "testoutput.tex")
-        file_to_file(sys.argv[2], "testoutput2.tex")
         os.system(os.path.join(".","tectonic.exe")+" report.tex --synctex --keep-logs")
     else:
-        print("give 2 files")
+        print("give 1 file")
 
 if __name__ == '__main__':
     main()
