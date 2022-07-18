@@ -30,7 +30,7 @@ CODEBLOCKENV = "verbatim"
 
 MARKDOWN_SPECIALS = ["\\","*","_","#","~","{","}","!","(",")"] # those characters can be escaped in markdown, which we need to consider for situations like \_ and unescape something like \(
 LATEX_USES = ["\\","{","}"] # those are special characters that it uses by itself. therefore these have to be escaped beforehand
-LATEX_SPECIALS = ["#","~","_","%"] # those characters cannot be escaped beforehand, since they are used for markdown syntax. some could be done beforehand like "%", but well, let's do that last
+LATEX_SPECIALS = ["#","~","_","%","$"] # those characters cannot be escaped beforehand, since they are used for markdown syntax. some could be done beforehand like "%", but well, let's do that last
 LATEX_DELIMITERS = ["|", "*", "_", "#", "!", "+", "-", "§", "/", "?", "@"]
 
 
