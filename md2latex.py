@@ -315,7 +315,7 @@ def convertcodeblocks(markdownstring):
     matches1 = re.findall(r'(?<!.)`{3}[\s\S]*?`{3}', markdownstring)
     # tabbed in text that has empty line above and below is a codeblock too
     matches2 = re.findall(r'\n\n((?: + +|\t+)[\s\S]*?)\n\n(?=\S|$)', markdownstring)
-    print(matches2)
+    
     for match in matches1+matches2:
         code = match.replace("```", "")
         while code.startswith("\n"): code = code[1:]
